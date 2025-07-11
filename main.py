@@ -1,5 +1,5 @@
 import streamlit as st
-from arcgis.features import FeatureLayer
+# from arcgis.features import FeatureLayer
 import pandas as pd
 import re
 import requests
@@ -24,7 +24,50 @@ GUEST_CODE = st.secrets["USER_CODE"]
 # --- Connect to your public Feature Layer ---
 FEATURE_LAYER_URL = st.secrets["ARCGIS_FEATURE_LAYER"] 
 API_KEY = st.secrets["GOOGLE_MAPS_API_KEY"]
-layer = FeatureLayer(FEATURE_LAYER_URL)
+# layer = FeatureLayer(FEATURE_LAYER_URL)
+
+#new modification-->
+import json
+
+def query_layer(where="1=1", out_fields="*", return_geometry=False,
+                return_all_records=False, return_count_only=False):
+    """
+    Wraps the /query endpoint.
+    """
+    params = {
+        "where": where,
+        "outFields": out_fields,
+        "returnGeometry": str(return_geometry).lower(),
+        "f": "json"
+    }
+    if return_all_records:
+        params["returnAllRecords"] = "true"
+    if return_count_only:
+        params["returnCountOnly"] = "true"
+
+    resp = requests.get(f"{FEATURE_LAYER_URL}/query", params=params)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def apply_edits(adds=None, updates=None, deletes=None):
+    """
+    Wraps the /applyEdits endpoint.
+    """
+    url = f"{FEATURE_LAYER_URL}/applyEdits"
+    body = {"f": "json"}
+    if adds:
+        body["adds"] = json.dumps([{"attributes": a} for a in adds])
+    if updates:
+        body["updates"] = json.dumps([{"attributes": u} for u in updates])
+    if deletes:
+        # deletes should be a comma-separated string of objectIds
+        body["deletes"] = deletes if isinstance(deletes, str) else ",".join(map(str, deletes))
+
+    resp = requests.post(url, data=body)
+    resp.raise_for_status()
+    return resp.json()
+
 
 
 # --- Session Setup ---
@@ -40,7 +83,8 @@ if "page" not in st.session_state:
 
 # Get total number of features
 if "total_count" not in st.session_state:
-    count_result = layer.query(where="1=1", return_count_only=True)
+    # count_result = layer.query(where="1=1", return_count_only=True)
+    count_result = query_layer(return_count_only=True).get("count", 0)
     st.session_state.total_count = count_result
 
     # Address Suggestor
@@ -86,8 +130,15 @@ def feature_layers_viewer():
 
     # --- Query features (raw JSON) ---
     with st.spinner("Fetching data from ArcGIS..."):
-        features = layer.query(where="1=1", out_fields="*", return_geometry=False,return_all_records=True)
-        raw_data = [f.attributes for f in features.features]  # extract attributes from each feature
+        # features = layer.query(where="1=1", out_fields="*", return_geometry=False,return_all_records=True)
+        # raw_data = [f.attributes for f in features.features]  # extract attributes from each feature
+        j = query_layer(
+            where="1=1",
+            out_fields="*",
+            return_geometry=False,
+            return_all_records=True
+        )
+        raw_data = [feat["attributes"] for feat in j.get("features", [])]
         df = pd.DataFrame(raw_data)
 
     # --- Show as scrollable table ---
@@ -110,7 +161,8 @@ def feature_layers_viewer():
             if st.button("🗑️ Delete Selected Entry",disabled=(st.session_state.login_mode != "admin")):
                 object_id_to_delete = df.loc[selected_index]['ObjectId']
                 try:
-                    result = layer.edit_features(deletes=str(object_id_to_delete))
+                    # result = layer.edit_features(deletes=str(object_id_to_delete))
+                    result = apply_edits(deletes=str(object_id_to_delete))
                     success = result.get("deleteResults", [{}])[0].get("success", False)
                     if success:
                         st.success(f"✅ Entry with ObjectId {object_id_to_delete} deleted successfully!")
@@ -226,7 +278,8 @@ def show_create_page():
                 st.error(err)
         else:
             try:
-                response = layer.edit_features(adds=[{"attributes": new_entry}])
+                # response = layer.edit_features(adds=[{"attributes": new_entry}])
+                response = apply_edits(adds=[new_entry])
                 if response['addResults'][0].get("success"):
                     st.success("✅ New entry added successfully!")
                     st.session_state.page = "view"
@@ -358,7 +411,8 @@ def show_edit_page():
                 st.error(err)
         else:
             try:
-                response = layer.edit_features(updates=[{"attributes": edited}])
+                # response = layer.edit_features(updates=[{"attributes": edited}])
+                response = apply_edits(updates=[edited])
                 if response['updateResults'][0].get('success'):
                     st.success("✅ Entry successfully updated!")
                 else:
