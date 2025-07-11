@@ -5,6 +5,7 @@ import re
 import requests
 import warnings
 
+
 #---window options-----
 
 # Set wide layout
@@ -18,6 +19,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning)
 # --- Configuration ---
 ACCESS_CODE = st.secrets["ADMIN_CODE"]  # Replace with your own secret code
 GUEST_CODE = st.secrets["USER_CODE"] 
+
 
 # --- Connect to your public Feature Layer ---
 FEATURE_LAYER_URL = st.secrets["ARCGIS_FEATURE_LAYER"] 
