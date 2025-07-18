@@ -428,7 +428,7 @@ def show_edit_page():
         else:
             try:
                 update_feature = {
-                    "attributes": {"ObjectId": st.session_state.object_id},
+                    "attributes": {"ObjectId": int(st.session_state.object_id)},
                     "geometry": {
                         "x": float(st.session_state.update_lng),
                         "y": float(st.session_state.update_lat),
