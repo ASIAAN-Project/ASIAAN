@@ -57,9 +57,11 @@ def apply_edits(adds=None, updates=None, deletes=None):
     url = f"{FEATURE_LAYER_URL}/applyEdits"
     body = {"f": "json"}
     if adds:
-        body["adds"] = json.dumps([{"attributes": a} for a in adds])
+        # body["adds"] = json.dumps([{"attributes": a} for a in adds])
+        body["adds"] = json.dumps(adds)
     if updates:
-        body["updates"] = json.dumps([{"attributes": u} for u in updates])
+        # body["updates"] = json.dumps([{"attributes": u} for u in updates])
+        body["updates"] = json.dumps(updates)
     if deletes:
         # deletes should be a comma-separated string of objectIds
         body["deletes"] = deletes if isinstance(deletes, str) else ",".join(map(str, deletes))
@@ -278,8 +280,22 @@ def show_create_page():
                 st.error(err)
         else:
             try:
+                # parse lat/lng into floats
+                lat = float(st.session_state.new_lat)
+                lon = float(st.session_state.new_lng)
+
+                # build a full feature dict: attributes + geometry
+                feature = {
+                    "attributes": new_entry,            # your form fields
+                    "geometry": {
+                        "x": lon,                       # longitude → x
+                        "y": lat,                       # latitude  → y
+                        "spatialReference": {"wkid": 4326}
+                    }
+                }
                 # response = layer.edit_features(adds=[{"attributes": new_entry}])
-                response = apply_edits(adds=[new_entry])
+                response = apply_edits(adds=[feature])
+                # response = apply_edits(adds=[new_entry])
                 if response['addResults'][0].get("success"):
                     st.success("✅ New entry added successfully!")
                     st.session_state.page = "view"
@@ -411,8 +427,17 @@ def show_edit_page():
                 st.error(err)
         else:
             try:
+                update_feature = {
+                    "attributes": {"ObjectId": st.session_state.object_id},
+                    "geometry": {
+                        "x": float(st.session_state.update_lng),
+                        "y": float(st.session_state.update_lat),
+                        "spatialReference": {"wkid": 4326}
+                    }
+                }
                 # response = layer.edit_features(updates=[{"attributes": edited}])
-                response = apply_edits(updates=[edited])
+                response = apply_edits(updates=[update_feature])
+                # response = apply_edits(updates=[edited])
                 if response['updateResults'][0].get('success'):
                     st.success("✅ Entry successfully updated!")
                 else:
