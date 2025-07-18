@@ -427,16 +427,17 @@ def show_edit_page():
                 st.error(err)
         else:
             try:
-                update_feature = {
-                    "attributes": {"ObjectId": int(st.session_state.object_id)},
-                    "geometry": {
-                        "x": float(st.session_state.update_lng),
-                        "y": float(st.session_state.update_lat),
-                        "spatialReference": {"wkid": 4326}
-                    }
+                geometry = {
+                    "x": float(st.session_state.update_lng),  # lon → x
+                    "y": float(st.session_state.update_lat),  # lat → y
+                    "spatialReference": {"wkid": 4326}
+                }
+                feature = {
+                    "attributes": edited,
+                    "geometry":   geometry
                 }
                 # response = layer.edit_features(updates=[{"attributes": edited}])
-                response = apply_edits(updates=[update_feature])
+                response = apply_edits(updates=[feature])
                 # response = apply_edits(updates=[edited])
                 if response['updateResults'][0].get('success'):
                     st.success("✅ Entry successfully updated!")
