@@ -223,7 +223,7 @@ def show_create_page():
         'Dementia_Support_Programs', 'Transportation', 'Senior_Centers', 'Caregiver_Support_Services',
         'Case_Management', 'Congregate_Meals', 'Financial_Counseling', 'Health_Education_Workshops',
         'Home_Delivered_Meals', 'Hospice_Care', 'Technology_Training', 'Cultural_Programming',
-        'Mental_Health', 'Vaccinations_Screening'
+        'Mental_Health', 'Vaccinations_Screening', 'Outreach_and_Advocacy', 'Lending_Closet', 'Independent_Living'
     ]
 
     new_entry = {}
@@ -338,7 +338,10 @@ def show_edit_page():
         'Technology_Training',
         'Cultural_Programming',
         'Mental_Health',
-        'Vaccinations_Screening'
+        'Vaccinations_Screening',
+        'Outreach_and_Advocacy', 
+        'Lending_Closet', 
+        'Independent_Living'
     ]
 
     edited = {}
