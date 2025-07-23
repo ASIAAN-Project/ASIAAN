@@ -420,7 +420,10 @@ def show_edit_page():
                 if i + j < len(binary_keys):
                     key = binary_keys[i + j]
                     with cols[j]:
-                        edited[key] = st.selectbox(key, [0, 1], index=int(binary_inputs[key]))
+                        # edited[key] = st.selectbox(key, [0, 1], index=int(binary_inputs[key]))
+                        raw = binary_inputs[key]
+                        default = int(raw) if raw not in (None, "") else 0
+                        edited[key] = st.selectbox(key, [0, 1], index=default)
 
         submitted = st.form_submit_button("✅ Push Update")
 
