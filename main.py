@@ -393,9 +393,13 @@ def show_edit_page():
             elif key == "Address_w_suit__":
                 addr_suite = (key, value)
             elif key == "Latitude":
-                edited[key] = st.text_input("Latitude", value=st.session_state.update_lat, disabled=True)
+                # edited[key] = st.text_input("Latitude", value=st.session_state.update_lat, disabled=True)
+                lat_prefill = st.session_state.update_lat or str(value or "")
+                edited[key] = st.text_input("Latitude", value=lat_prefill, disabled=True)
             elif key == "Longitude":
-                edited[key] = st.text_input("Longitude", value=st.session_state.update_lng, disabled=True)
+                # edited[key] = st.text_input("Longitude", value=st.session_state.update_lng, disabled=True)
+                lng_prefill = st.session_state.update_lng or str(value or "")
+                edited[key] = st.text_input("Longitude", value=lng_prefill, disabled=True)
             else:
                 edited[key] = st.text_input(key, str(value))
 
@@ -433,15 +437,18 @@ def show_edit_page():
                 st.error(err)
         else:
             try:
-                geometry = {
-                    "x": float(st.session_state.update_lng),  # lon → x
-                    "y": float(st.session_state.update_lat),  # lat → y
-                    "spatialReference": {"wkid": 4326}
-                }
-                feature = {
-                    "attributes": edited,
-                    "geometry":   geometry
-                }
+                # Build geometry only when we actually have numbers
+                lat_str = (st.session_state.update_lat or edited.get("Latitude") or "").strip()
+                lng_str = (st.session_state.update_lng or edited.get("Longitude") or "").strip()
+
+                feature = {"attributes": edited}
+
+                if lat_str and lng_str:
+                    feature["geometry"] = {
+                        "x": float(lng_str),  # longitude → x
+                        "y": float(lat_str),  # latitude → y
+                        "spatialReference": {"wkid": 4326},
+                    }
                 # response = layer.edit_features(updates=[{"attributes": edited}])
                 response = apply_edits(updates=[feature])
                 # response = apply_edits(updates=[edited])
