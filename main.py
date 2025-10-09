@@ -224,6 +224,7 @@ def show_create_page():
         'Case_Management', 'Congregate_Meals', 'Financial_Counseling', 'Health_Education_Workshops',
         'Home_Delivered_Meals', 'Hospice_Care', 'Technology_Training', 'Cultural_Programming',
         'Mental_Health', 'Vaccinations_Screening', 'Outreach_and_Advocacy', 'Lending_Closet', 'Independent_Living'
+        'Homemakers_Personal_Support','Independent_Housing'
     ]
 
     new_entry = {}
@@ -341,7 +342,9 @@ def show_edit_page():
         'Vaccinations_Screening',
         'Outreach_and_Advocacy', 
         'Lending_Closet', 
-        'Independent_Living'
+        'Independent_Living',
+        'Homemakers_Personal_Support',
+        'Independent_Housing'
     ]
 
     edited = {}
