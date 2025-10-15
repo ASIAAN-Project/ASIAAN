@@ -162,6 +162,11 @@ def feature_layers_viewer():
         with col1:
             if st.button("✏️ Edit Selected Entry",
                          disabled=(st.session_state.login_mode != "admin")):
+                # Reset address state for fresh edit
+                st.session_state.update_address = ""
+                st.session_state.update_lat = ""
+                st.session_state.update_lng = ""
+                
                 st.session_state.selected_record = df.loc[selected_index].to_dict()
                 st.session_state.object_id = df.loc[selected_index].get('ObjectId') or df.loc[selected_index].get('OBJECTID')
                 st.session_state.page = 'edit'
@@ -185,6 +190,11 @@ def feature_layers_viewer():
         with col3:
             if st.button("➕ Create New Entry",
                          disabled=(st.session_state.login_mode != "admin")):
+                # Reset address state for fresh create
+                st.session_state.new_address = ""
+                st.session_state.new_lat = ""
+                st.session_state.new_lng = ""
+                
                 st.session_state.selected_record = {}
                 st.session_state.page = "create"
                 st.rerun()
@@ -241,7 +251,7 @@ def show_create_page():
         # Core identity/contact
         new_entry["Name"] = st.text_input("Name")
 
-        phone_raw = st.text_input("Phone Number (format: 123-456-7890)")
+        phone_raw = st.text_input("Phone Number (any format with 10 digits)")
         phone_fmt, phone_err = normalize_phone(phone_raw)
         new_entry["Phone_number"] = phone_fmt
         if phone_err:
@@ -293,6 +303,10 @@ def show_create_page():
             response = apply_edits(adds=[feature])
             if response.get('addResults', [{}])[0].get("success"):
                 st.success("✅ New entry added successfully!")
+                # Reset address state after successful submission
+                st.session_state.new_address = ""
+                st.session_state.new_lat = ""
+                st.session_state.new_lng = ""
                 st.session_state.page = "view"
                 st.rerun()
             else:
@@ -301,6 +315,10 @@ def show_create_page():
             st.error(f"❌ Error: {e}")
 
     if st.button("⬅️ Back to Table"):
+        # Reset address state when going back
+        st.session_state.new_address = ""
+        st.session_state.new_lat = ""
+        st.session_state.new_lng = ""
         st.session_state.page = 'view'
         st.rerun()
 
@@ -312,6 +330,14 @@ def show_edit_page():
 
     binary_fields = set(binary_fields_list())
     other_schema_fields = [f for f in editable_field_names() if f not in binary_fields]
+
+    # Initialize update address from selected record if empty
+    if not st.session_state.update_address:
+        st.session_state.update_address = st.session_state.selected_record.get("Address", "")
+    if not st.session_state.update_lat:
+        st.session_state.update_lat = str(st.session_state.selected_record.get("Latitude", ""))
+    if not st.session_state.update_lng:
+        st.session_state.update_lng = str(st.session_state.selected_record.get("Longitude", ""))
 
     # Address suggestor
     user_input = st.text_input("🔍 Search Address", value=st.session_state.update_address, key="edit_address_input")
@@ -338,7 +364,7 @@ def show_edit_page():
                 edited[key] = value
 
             elif key == 'Phone_number':
-                phone_raw = st.text_input("Phone Number (format: 123-456-7890)", str(value or ""))
+                phone_raw = st.text_input("Phone Number (any format with 10 digits)", str(value or ""))
                 phone_fmt, phone_err = normalize_phone(phone_raw)
                 edited[key] = phone_fmt
                 if phone_err:
@@ -348,18 +374,16 @@ def show_edit_page():
                 binary_inputs[key] = value  # delay render for grouped layout
 
             elif key == "Address":
-                edited[key] = st.text_input("Address", value=st.session_state.update_address or str(value or ""), disabled=True)
+                edited[key] = st.text_input("Address", value=st.session_state.update_address, disabled=True)
 
             elif key == "Address_w_suit__":
                 edited[key] = st.text_input("Address w/ Suite", str(value or ""))
 
             elif key == "Latitude":
-                lat_prefill = st.session_state.update_lat or str(value or "")
-                edited[key] = st.text_input("Latitude", value=lat_prefill, disabled=True)
+                edited[key] = st.text_input("Latitude", value=st.session_state.update_lat, disabled=True)
 
             elif key == "Longitude":
-                lng_prefill = st.session_state.update_lng or str(value or "")
-                edited[key] = st.text_input("Longitude", value=lng_prefill, disabled=True)
+                edited[key] = st.text_input("Longitude", value=st.session_state.update_lng, disabled=True)
 
             else:
                 edited[key] = st.text_input(key, str(value if value is not None else ""))
@@ -392,8 +416,8 @@ def show_edit_page():
                 st.error(err)
         else:
             try:
-                lat_str = (st.session_state.update_lat or edited.get("Latitude") or "").strip()
-                lng_str = (st.session_state.update_lng or edited.get("Longitude") or "").strip()
+                lat_str = st.session_state.update_lat.strip() if st.session_state.update_lat else ""
+                lng_str = st.session_state.update_lng.strip() if st.session_state.update_lng else ""
 
                 # clean empty strings -> None
                 attrs = {k: (v if v != "" else None) for k, v in edited.items()}
@@ -408,12 +432,20 @@ def show_edit_page():
                 response = apply_edits(updates=[feature])
                 if response.get('updateResults', [{}])[0].get('success'):
                     st.success("✅ Entry successfully updated!")
+                    # Reset address state after successful update
+                    st.session_state.update_address = ""
+                    st.session_state.update_lat = ""
+                    st.session_state.update_lng = ""
                 else:
                     st.error("❌ Update failed. Please check your inputs or field types.")
             except Exception as e:
                 st.error(f"❌ An error occurred: {e}")
 
     if st.button("⬅️ Back to Table"):
+        # Reset address state when going back
+        st.session_state.update_address = ""
+        st.session_state.update_lat = ""
+        st.session_state.update_lng = ""
         st.session_state.page = 'view'
         st.rerun()
 
