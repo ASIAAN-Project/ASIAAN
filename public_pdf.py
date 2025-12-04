@@ -43,14 +43,13 @@ def sanitize_text(value) -> str:
 def query_layer(object_ids: List[int]) -> List[dict]:
     """
     Fetch attribute records for the given OBJECTIDs from ArcGIS feature layer.
+    Uses the 'objectIds' parameter so it works regardless of the field name.
     """
     if not object_ids:
         return []
 
-    where = f"OBJECTID IN ({','.join(map(str, object_ids))})"
-
     params = {
-        "where": where,
+        "objectIds": ",".join(map(str, object_ids)),  # <-- main change
         "outFields": "*",
         "f": "json",
     }
@@ -61,6 +60,7 @@ def query_layer(object_ids: List[int]) -> List[dict]:
 
     features = data.get("features", [])
     return [f["attributes"] for f in features]
+
 
 
 def fit_to_width(pdf: FPDF, text: str, max_width: float) -> str:
