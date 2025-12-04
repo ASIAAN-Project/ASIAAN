@@ -1,255 +1,259 @@
-import io
-from typing import List
+# public_pdf.py
 
+import streamlit as st
 import pandas as pd
 import requests
-import streamlit as st
 from fpdf import FPDF
 
+# ---------------------------------------------------------
+# Streamlit + ArcGIS config
+# ---------------------------------------------------------
+st.set_page_config(page_title="Export Service Centres to PDF", layout="wide")
 
-# ------------------------ #
-# Streamlit page settings  #
-# ------------------------ #
-
-st.set_page_config(
-    page_title="Service Centre PDF Export",
-    layout="wide",
-)
-
-# 🔒 Hard-code your feature layer URL here
-FEATURE_LAYER_URL = (
-    "https://services.arcgis.com/GL0fWlNkwysZaKeV/arcgis/rest/services/streamlit_mA7Px9ZqL2_feature_layer/FeatureServer/0"  
-)
+FEATURE_LAYER_URL = st.secrets["ARCGIS_FEATURE_LAYER"]
 
 
-# ------------------------ #
-# Helpers                  #
-# ------------------------ #
-
-def sanitize_text(value) -> str:
+# ---------------------------------------------------------
+# ArcGIS helper
+# ---------------------------------------------------------
+def query_layer(where: str = "1=1", out_fields: str = "*"):
     """
-    Convert to string and strip characters FPDF cannot render (non latin-1).
-    This avoids FPDFUnicodeEncodingException on Streamlit Cloud.
+    Query the ASIAAN feature layer with a WHERE clause and return attributes.
     """
-    if value is None:
-        return ""
-    if not isinstance(value, str):
-        value = str(value)
-
-    # remove characters outside latin-1 range
-    return value.encode("latin-1", "ignore").decode("latin-1")
-
-
-def query_layer(object_ids: List[int]) -> List[dict]:
-    """
-    Fetch attribute records for the given OBJECTIDs from ArcGIS feature layer.
-    Uses the 'objectIds' parameter so it works regardless of the field name.
-    """
-    if not object_ids:
-        return []
-
     params = {
-        "objectIds": ",".join(map(str, object_ids)),  # <-- main change
-        "outFields": "*",
+        "where": where,
+        "outFields": out_fields,
+        "returnGeometry": "false",
+        "returnDistinctValues": "false",
         "f": "json",
     }
-
-    resp = requests.get(f"{FEATURE_LAYER_URL}/query", params=params, timeout=30)
+    resp = requests.get(f"{FEATURE_LAYER_URL}/query", params=params)
     resp.raise_for_status()
     data = resp.json()
-
     features = data.get("features", [])
     return [f["attributes"] for f in features]
 
 
+# ---------------------------------------------------------
+# PDF helpers
+# ---------------------------------------------------------
+def safe(val) -> str:
+    """Turn NaN / None into empty string, everything else into str."""
+    if val is None:
+        return ""
+    if isinstance(val, float) and pd.isna(val):
+        return ""
+    return str(val)
+
 
 def fit_to_width(pdf: FPDF, text: str, max_width: float) -> str:
     """
-    Ensure 'text' fits in the given width, truncating with '...'
-    if necessary. Works only with sanitized (latin-1 safe) text.
+    Ensure text fits inside max_width.
+    If it's too long, truncate and add '...'.
     """
-    text = sanitize_text(text)
-
-    # nothing to do if it already fits
-    if pdf.get_string_width(text) <= max_width:
-        return text
-
-    # if very short and still too wide, just return it as-is
-    if len(text) <= 3:
-        return text
-
-    # truncate and add "..."
-    base = text
-    while pdf.get_string_width(base + "...") > max_width and len(base) > 0:
-        base = base[:-1]
-
-    return base + "..."
+    text = safe(text)
+    if not text:
+        return ""
+    while pdf.get_string_width(text) > max_width and len(text) > 3:
+        text = text[:-4] + "..."
+    return text
 
 
 def records_to_pdf(df: pd.DataFrame) -> bytes:
     """
-    Render the selected service centres into a nicely formatted PDF.
+    Generate the PDF in portrait mode.
 
-    Layout:
-        Service centre details               (title)
-        ----------------------------------------------
-        Agency Name: ...
-        Address: ...
-        Address w/ suite #: ...
-        Languages: ...
-        Website: clickable blue underlined
+    Title (centered): "Service centre details" (bold + underline)
+
+    For each service centre:
+
+        Agency Name: <value>
+        Address: <value>
+        Address w/ suite #: <value>
+        Languages: <value>
+        Website: <blue underlined clickable link>
+
+    Labels (before :) are bold + underlined.
+    Values are normal.
+    Service centres separated by a horizontal line.
     """
-    # sanitize dataframe text once up front
-    df = df.copy()
-    for col in df.columns:
-        df[col] = df[col].map(sanitize_text)
-
-    pdf = FPDF(orientation="P", unit="mm", format="A4")
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_margins(15, 15, 15)
+    # Portrait Letter page
+    pdf = FPDF(orientation="P", unit="mm", format="Letter")
+    pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
 
-    # title
-    pdf.set_font("helvetica", "BU", 16)
-    title = "Service centre details"
-    title_w = pdf.get_string_width(title)
-    pdf.set_x((pdf.w - title_w) / 2)
-    pdf.cell(title_w, 10, title, ln=1)
-    pdf.ln(5)
+    # Margins and sizes
+    pdf.set_margins(left=15, top=20, right=15)
+    line_h = 6
+    label_size = 10
+    value_size = 10
 
     usable_width = pdf.w - pdf.l_margin - pdf.r_margin
-    label_width = 55  # width for "Agency Name:", etc.
-    value_width = usable_width - label_width
 
-    def write_field(label: str, value: str):
-        label = sanitize_text(label)
-        value = sanitize_text(value)
+    # -------- Title --------
+    pdf.set_font("Helvetica", style="BU", size=14)
+    pdf.cell(0, 8, "Service centre details", ln=1, align="C")
+    pdf.ln(4)
 
-        # label: bold + underline
-        pdf.set_font("helvetica", "BU", 11)
-        pdf.cell(label_width, 6, label, ln=0)
-
-        # value: normal, truncated to width
-        pdf.set_font("helvetica", "", 11)
-        display = fit_to_width(pdf, value, value_width)
-        pdf.cell(value_width, 6, display, ln=1)
-
+    # Reset font for body
     for idx, row in df.iterrows():
-        agency = row.get("Agency_Name", "")
-        addr1 = row.get("Address", "")
-        addr2 = row.get("Address_w_suit_", "")
-        langs = row.get("Languages", "")
-        website = row.get("Website", "")
+        # Separator line between centres (not before the first)
+        if idx > 0:
+            pdf.ln(2)
+            y = pdf.get_y()
+            pdf.set_draw_color(180, 180, 180)
+            pdf.set_line_width(0.3)
+            pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
+            pdf.ln(4)
 
-        # Each service centre block
-        write_field("Agency Name:", agency)
-        write_field("Address:", addr1)
-        write_field("Address w/ suite #:", addr2)
-        write_field("Languages:", langs)
+        # Prepare fields
+        fields = [
+            ("Agency Name", safe(row.get("Agency_Name")), False),
+            ("Address", safe(row.get("Address")), False),
+            ("Address w/ suite #", safe(row.get("Address_w_suit__")), False),
+            ("Languages", safe(row.get("Languages")), False),
+            ("Website", safe(row.get("Website")), True),
+        ]
 
-        # Website: clickable blue underlined
-        pdf.set_font("helvetica", "BU", 11)
-        pdf.set_text_color(0, 0, 255)
-        label = "Website:"
-        pdf.cell(label_width, 6, label, ln=0)
+        for label, value, is_link in fields:
+            pdf.set_x(pdf.l_margin)
 
-        pdf.set_font("helvetica", "U", 11)
-        pdf.set_text_color(0, 0, 255)
-        website_sanitized = sanitize_text(website)
-        website_display = fit_to_width(pdf, website_sanitized, value_width)
+            label_text = f"{label}:"
+            # width used by the label (bold+underlined)
+            pdf.set_font("Helvetica", style="BU", size=label_size)
+            label_width = pdf.get_string_width(label_text + " ")
+            if label_width > usable_width * 0.5:
+                label_width = usable_width * 0.5  # just in case
 
-        # link() uses the full, untruncated URL, but display the truncated one
-        link_url = website_sanitized if website_sanitized else ""
-        pdf.cell(value_width, 6, website_display, ln=1, link=link_url)
+            remaining_width = usable_width - label_width
 
-        # reset text color to black for next fields
-        pdf.set_text_color(0, 0, 0)
+            # Fit the value in the remaining width (no wrapping)
+            display_value = fit_to_width(pdf, value, remaining_width)
 
-        # separator line between centres
+            # --- draw label ---
+            pdf.set_text_color(0, 0, 0)
+            pdf.cell(label_width, line_h, txt=label_text, ln=0)
+
+            # --- draw value ---
+            if is_link and display_value:
+                # blue underlined clickable
+                pdf.set_text_color(0, 0, 255)
+                pdf.set_font("Helvetica", style="U", size=value_size)
+                pdf.cell(
+                    remaining_width,
+                    line_h,
+                    txt=display_value,
+                    ln=1,
+                    link=value,  # link uses full original URL
+                )
+                pdf.set_text_color(0, 0, 0)
+            else:
+                pdf.set_font("Helvetica", style="", size=value_size)
+                pdf.cell(remaining_width, line_h, txt=display_value, ln=1)
+
         pdf.ln(2)
-        y = pdf.get_y()
-        pdf.set_draw_color(0, 0, 0)
-        pdf.set_line_width(0.3)
-        pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
-        pdf.ln(4)
 
-    # return as bytes
-    return pdf.output(dest="S").encode("latin-1")
+    # fpdf.output(dest="S") can be str or bytes / bytearray depending on version
+    raw = pdf.output(dest="S")
+    if isinstance(raw, (bytes, bytearray)):
+        return bytes(raw)
+    else:
+        # FPDF expects latin-1; ignore characters it cannot encode
+        return raw.encode("latin-1", errors="ignore")
 
 
-# ------------------------ #
-# Streamlit UI             #
-# ------------------------ #
-
+# ---------------------------------------------------------
+# Streamlit app
+# ---------------------------------------------------------
 def main():
-    st.title("Export Service Centres to PDF")
+    st.markdown(
+        "<h1 style='font-size: 28px;'>Export Service Centres to PDF</h1>",
+        unsafe_allow_html=True,
+    )
 
-    params = st.query_params
-    ids_param = params.get("ids", [])
+    # Query params: ?ids=3,7,25
+    qp = st.query_params
+    ids_raw = qp.get("ids", None)
 
-    if not ids_param:
-        st.info("No service centre IDs supplied. Please return to the map and click Save PDF.")
+    if not ids_raw:
+        st.info(
+            "No service centre IDs supplied. "
+            "Please return to the map and click **Save PDF** again."
+        )
         return
 
-    # ids are passed as a single comma-separated string
-    id_string = ids_param[0]
-    try:
-        id_list = [int(x) for x in id_string.split(",") if x.strip()]
-    except ValueError:
-        st.error("Invalid OBJECTID list.")
-        return
+    if isinstance(ids_raw, list):
+        id_string = ids_raw[0]
+    else:
+        id_string = ids_raw
 
-    records = query_layer(id_list)
+    where = f"OBJECTID in ({id_string})"
+
+    # ---- Fetch records from ArcGIS ----
+    with st.spinner("Loading service centre details…"):
+        records = query_layer(where=where, out_fields="*")
+
     if not records:
         st.error("No records found for those OBJECTIDs.")
         return
 
     df = pd.DataFrame(records)
+    st.write(f"**{len(df)} record(s) returned.**")
 
-    # show preview table with checkboxes
-    st.write(f"{len(df)} record(s) returned.")
-    df_preview = df[["Agency_Name", "Address", "Address_w_suit_", "Languages", "Website"]].copy()
-    df_preview.insert(0, "Select", True)
+    # ---- Show table with checkboxes ----
+    cols_for_view = ["Agency_Name", "Address", "Address_w_suit__", "Languages", "Website"]
+    view_df = df[cols_for_view].copy()
+    view_df.insert(0, "Select", True)
+
+    st.markdown("### Select the service centres you want in the PDF")
 
     edited = st.data_editor(
-        df_preview,
-        use_container_width=True,
+        view_df,
         hide_index=True,
-        num_rows="fixed",
+        use_container_width=True,
+        height=420,
         column_config={
             "Select": st.column_config.CheckboxColumn(
                 "Select",
+                help="Tick the service centres to include",
                 default=True,
-                help="Uncheck to exclude from PDF",
             )
         },
-        key="service_table",
+        disabled=["Agency_Name", "Address", "Address_w_suit__", "Languages", "Website"],
     )
 
-    selected_df = df[df.index.isin(edited.index[edited["Select"]])]
-    if selected_df.empty:
-        st.warning("No records selected.")
-        return
+    selected_indices = edited.index[edited["Select"]].tolist()
+    selected_df = df.loc[selected_indices] if selected_indices else df.iloc[0:0]
 
+    st.write("")
     col_all, col_sel = st.columns(2)
 
+    # ---- Download ALL ----
     with col_all:
-        if st.download_button(
-            label=f"⬇️ Download all {len(df)} record(s)",
-            data=records_to_pdf(df),
-            file_name="service_centres.pdf",
+        pdf_all = records_to_pdf(df)
+        st.download_button(
+            label=f"📄 Download all {len(df)} record(s)",
+            data=pdf_all,
+            file_name="service_centres_all.pdf",
             mime="application/pdf",
-        ):
-            st.success("PDF generated for all records.")
+        )
 
+    # ---- Download SELECTED ----
     with col_sel:
-        if st.download_button(
-            label=f"⬇️ Download selected {len(selected_df)} record(s)",
-            data=records_to_pdf(selected_df),
-            file_name="service_centres_selected.pdf",
-            mime="application/pdf",
-        ):
-            st.success("PDF generated for selected records.")
+        if selected_df.empty:
+            st.button(
+                "📄 Download selected record(s)",
+                disabled=True,
+                help="Tick at least one row above to enable this.",
+            )
+        else:
+            pdf_sel = records_to_pdf(selected_df)
+            st.download_button(
+                label=f"📄 Download selected {len(selected_df)} record(s)",
+                data=pdf_sel,
+                file_name="service_centres_selected.pdf",
+                mime="application/pdf",
+            )
 
 
 if __name__ == "__main__":
