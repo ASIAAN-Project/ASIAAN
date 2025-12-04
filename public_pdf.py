@@ -18,7 +18,7 @@ st.set_page_config(
 
 # 🔒 Hard-code your feature layer URL here
 FEATURE_LAYER_URL = (
-    "https://services.arcgis.com/.../FeatureServer/0"  # <-- your real URL
+    "https://services.arcgis.com/GL0fWlNkwysZaKeV/arcgis/rest/services/streamlit_mA7Px9ZqL2_feature_layer/FeatureServer/0"  
 )
 
 
