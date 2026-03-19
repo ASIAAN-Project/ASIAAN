@@ -170,7 +170,7 @@ def binary_fields_list():
         'Case_Management','Congregate_Meals','Financial_Counseling','Health_Education_Workshops',
         'Home_Delivered_Meals','Hospice_Care','Technology_Training','Cultural_Programming',
         'Mental_Health','Vaccinations_Screening','Outreach_and_Advocacy','Lending_Closet',
-        'Independent_Living','Homemakers_Personal_Support','Independent_Housing'
+        'Independent_Living','Homemakers_Personal_Support','Independent_Housing','Energy_Assistance','Adult_Guardianship'
     ]
 
 # ──────────────────────────────────────────────────────────────────────────────
