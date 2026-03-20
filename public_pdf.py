@@ -12,7 +12,7 @@ from fpdf import FPDF
 # ---------------------------------------------------------
 # Streamlit + ArcGIS config
 # ---------------------------------------------------------
-st.set_page_config(page_title="Export Service Centres to PDF", layout="wide")
+st.set_page_config(page_title="Export Service Center to PDF", layout="wide")
 
 FEATURE_LAYER_URL = st.secrets["ARCGIS_FEATURE_LAYER"]
 
