@@ -143,7 +143,7 @@ def records_to_pdf(df: pd.DataFrame) -> bytes:
     """
     Generate the PDF in portrait mode.
 
-    Title (centered): "Service centre details" (bold + underline)
+    Title (centered): "Service Center details" (bold + underline)
 
     For each service centre:
 
@@ -175,7 +175,7 @@ def records_to_pdf(df: pd.DataFrame) -> bytes:
 
     # -------- Title --------
     pdf.set_font(font_family, style="BU", size=14)
-    pdf.cell(0, 8, "Service centre details", ln=1, align="C")
+    pdf.cell(0, 8, "Service Center Details", ln=1, align="C")
     pdf.ln(4)
 
     for idx, row in df.iterrows():
@@ -248,7 +248,7 @@ def records_to_pdf(df: pd.DataFrame) -> bytes:
 # ---------------------------------------------------------
 def main():
     st.markdown(
-        "<h1 style='font-size: 28px;'>Export Service Centres to PDF</h1>",
+        "<h1 style='font-size: 28px;'>Export Service Centers to PDF</h1>",
         unsafe_allow_html=True,
     )
 
@@ -271,7 +271,7 @@ def main():
     where = f"OBJECTID in ({id_string})"
 
     # ---- Fetch records from ArcGIS ----
-    with st.spinner("Loading service centre details..."):
+    with st.spinner("Loading service center details..."):
         records = query_layer(where=where, out_fields="*")
 
     if not records:
@@ -286,7 +286,7 @@ def main():
     view_df = df[cols_for_view].copy()
     view_df.insert(0, "Select", True)
 
-    st.markdown("### Select the service centres you want in the PDF")
+    st.markdown("### Select the service centers you want in the PDF")
 
     edited = st.data_editor(
         view_df,
@@ -315,7 +315,7 @@ def main():
         st.download_button(
             label=f"📄 Download all {len(df)} record(s)",
             data=pdf_all,
-            file_name="service_centres_all.pdf",
+            file_name="service_centers_all.pdf",
             mime="application/pdf",
         )
 
@@ -332,7 +332,7 @@ def main():
             st.download_button(
                 label=f"📄 Download selected {len(selected_df)} record(s)",
                 data=pdf_sel,
-                file_name="service_centres_selected.pdf",
+                file_name="service_centers_selected.pdf",
                 mime="application/pdf",
             )
 
