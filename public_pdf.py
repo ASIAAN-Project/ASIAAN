@@ -284,7 +284,7 @@ def main():
     # ---- Show table with checkboxes ----
     cols_for_view = ["Agency_Name", "Address", "Address_w_suit__", "Languages", "Website"]
     view_df = df[cols_for_view].copy()
-    view_df.insert(0, "Select", True)
+    view_df.insert(0, "Select", False)
 
     st.markdown("### Select the service centers you want in the PDF")
 
