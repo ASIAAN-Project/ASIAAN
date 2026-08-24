@@ -1,3 +1,4 @@
+import html
 import os
 import re
 import unicodedata
@@ -89,13 +90,54 @@ st.markdown(
         font-weight: 600;
       }
       .phone-link {
-        font-size: 1.05rem;
+        font-size: 1.08rem;
         font-weight: 700;
         text-decoration: underline;
       }
       .result-count {
         font-size: 1.05rem;
         margin-bottom: 0.5rem;
+      }
+      .location-box,
+      .contact-box {
+        border: 1px solid rgba(128, 128, 128, 0.35);
+        background: rgba(128, 128, 128, 0.08);
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin: 0.7rem 0 1rem 0;
+      }
+      .field-label {
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        opacity: 0.78;
+        margin-bottom: 0.35rem;
+      }
+      .field-value {
+        font-size: 1.13rem;
+        font-weight: 650;
+        line-height: 1.5;
+      }
+      .suite-value {
+        font-size: 1rem;
+        line-height: 1.4;
+        margin-top: 0.4rem;
+        opacity: 0.9;
+      }
+      .contact-box .phone-link {
+        font-size: 1.13rem;
+        font-weight: 700;
+        text-decoration: underline;
+      }
+      .info-block {
+        margin-top: 1.2rem;
+        margin-bottom: 0.8rem;
+      }
+      .service-item {
+        font-size: 1.05rem;
+        line-height: 1.5;
+        padding: 0.35rem 0;
       }
     </style>
     """,
@@ -164,6 +206,34 @@ def phone_href(phone: str) -> str:
     if len(digits) == 10:
         return f"+1{digits}"
     return digits
+
+
+def addresses_equivalent(a: str, b: str) -> bool:
+    """Treat formatting-only address differences as the same address."""
+    def normalize(value: str) -> str:
+        value = safe(value).lower()
+        value = re.sub(r"\b(united states of america|united states|usa)\b", "", value)
+        value = re.sub(r"[^a-z0-9]+", " ", value)
+        return re.sub(r"\s+", " ", value).strip()
+
+    return bool(a and b and normalize(a) == normalize(b))
+
+
+def render_info_value(label: str, value: str):
+    """Render a clearly separated label and value for easier scanning."""
+    value = safe(value)
+    if not value:
+        return
+
+    st.markdown(
+        (
+            '<div class="info-block">'
+            f'<div class="field-label">{html.escape(label)}</div>'
+            f'<div class="field-value">{html.escape(value)}</div>'
+            '</div>'
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -367,17 +437,32 @@ def render_core_details(record: dict):
     languages = safe(record.get("Languages"))
     website = normalize_website(record.get("Website"))
 
-    if address:
-        st.markdown("**Address**")
-        st.write(address)
+    primary_address = address or suite_address
+    extra_suite = (
+        suite_address
+        if suite_address
+        and primary_address
+        and not addresses_equivalent(primary_address, suite_address)
+        and suite_address != primary_address
+        else ""
+    )
 
-    # Avoid showing the same address twice.
-    if suite_address and suite_address != address:
-        st.markdown("**Address with suite / unit**")
-        st.write(suite_address)
+    # LOCATION
+    if primary_address:
+        location_html = (
+            '<div class="location-box">'
+            '<div class="field-label">📍 Location</div>'
+            f'<div class="field-value">{html.escape(primary_address)}</div>'
+        )
+        if extra_suite:
+            location_html += (
+                f'<div class="suite-value"><strong>Suite / unit:</strong> '
+                f'{html.escape(extra_suite)}</div>'
+            )
+        location_html += '</div>'
+        st.markdown(location_html, unsafe_allow_html=True)
 
-    if address:
-        encoded = quote_plus(address)
+        encoded = quote_plus(primary_address)
         google_url = f"https://www.google.com/maps/search/?api=1&query={encoded}"
         apple_url = f"https://maps.apple.com/?q={encoded}"
 
@@ -395,48 +480,91 @@ def render_core_details(record: dict):
                 width="stretch",
             )
 
+    # PHONE
     if phone:
-        st.markdown("**Phone**")
         href = phone_href(phone)
         if href:
-            st.markdown(
-                f'<a class="phone-link" href="tel:{href}">Call {phone}</a>',
-                unsafe_allow_html=True,
+            phone_value = (
+                f'<a class="phone-link" href="tel:{href}">'
+                f'{html.escape(phone)}</a>'
             )
         else:
-            st.write(phone)
+            phone_value = f'<div class="field-value">{html.escape(phone)}</div>'
 
+        st.markdown(
+            (
+                '<div class="contact-box">'
+                '<div class="field-label">☎ Phone</div>'
+                f'{phone_value}'
+                '</div>'
+            ),
+            unsafe_allow_html=True,
+        )
+
+    # LANGUAGES
     if languages:
-        st.markdown("**Languages**")
-        st.write(languages)
+        st.markdown(
+            (
+                '<div class="contact-box">'
+                '<div class="field-label">🗣 Languages</div>'
+                f'<div class="field-value">{html.escape(languages)}</div>'
+                '</div>'
+            ),
+            unsafe_allow_html=True,
+        )
 
+    # WEBSITE
     if website:
-        st.markdown("**Website**")
+        st.markdown(
+            '<div class="field-label" style="margin-top:1.2rem;">Website</div>',
+            unsafe_allow_html=True,
+        )
         st.link_button("Visit website", website, width="stretch")
 
-
 def render_services(record: dict):
-    st.markdown("### Services")
+    # Show only services that this center actually provides.
+    available_services = [
+        display_name
+        for field_name, display_name in SERVICE_FIELDS
+        if is_yes(record.get(field_name))
+    ]
 
-    for field_name, display_name in SERVICE_FIELDS:
-        left, right = st.columns([4, 1])
-        with left:
-            st.write(display_name)
-        with right:
-            st.markdown("**Yes**" if is_yes(record.get(field_name)) else "No")
+    if not available_services:
+        return
+
+    st.markdown("### Services provided")
+
+    for service in available_services:
+        st.markdown(
+            f'<div class="service-item">✓ <strong>{html.escape(service)}</strong></div>',
+            unsafe_allow_html=True,
+        )
 
 
 def render_service_center(record: dict):
     agency = safe(record.get("Agency_Name")) or "Service Center"
+    has_services = any(
+        is_yes(record.get(field_name))
+        for field_name, _ in SERVICE_FIELDS
+    )
 
     with st.container(border=True):
         st.subheader(agency)
         render_core_details(record)
-        st.divider()
-        render_services(record)
+
+        if has_services:
+            st.divider()
+            render_services(record)
 
 
-def render_pagination(total_results: int):
+def render_pagination(total_results: int, position: str):
+    """
+    Render pagination controls.
+
+    `position` must be unique for each rendered copy ("top" or "bottom").
+    Explicit widget keys prevent StreamlitDuplicateElementId when the same
+    Previous/Next controls appear above and below the results.
+    """
     if total_results <= PAGE_SIZE:
         return
 
@@ -450,6 +578,7 @@ def render_pagination(total_results: int):
             "← Previous",
             disabled=current_page <= 0,
             width="stretch",
+            key=f"viewer_previous_{position}",
         ):
             st.session_state.viewer_page -= 1
             st.rerun()
@@ -465,6 +594,7 @@ def render_pagination(total_results: int):
             "Next →",
             disabled=current_page >= total_pages - 1,
             width="stretch",
+            key=f"viewer_next_{position}",
         ):
             st.session_state.viewer_page += 1
             st.rerun()
@@ -528,6 +658,7 @@ def main():
             data=pdf_all,
             file_name="service_centers_all.pdf",
             mime="application/pdf",
+            key="viewer_pdf_download_all",
         )
 
         st.markdown("#### Or choose specific service centers")
@@ -567,6 +698,7 @@ def main():
                 "Download selected service centers as PDF",
                 disabled=True,
                 help="Select at least one service center above.",
+                key="viewer_pdf_selected_disabled",
             )
         else:
             pdf_selected = records_to_pdf(selected_df)
@@ -575,6 +707,7 @@ def main():
                 data=pdf_selected,
                 file_name="service_centers_selected.pdf",
                 mime="application/pdf",
+                key="viewer_pdf_download_selected",
             )
 
     st.divider()
@@ -582,6 +715,7 @@ def main():
     search_text = st.text_input(
         "Search within these results",
         placeholder="Search by service center name, address, language, or available service",
+        key="viewer_search_input",
     )
 
     visible_records = [
@@ -618,12 +752,12 @@ def main():
         st.write(f"Showing **{total_visible} of {total_count}** service centers.")
 
     st.markdown(f"### Showing {start + 1}-{end} of {total_visible}")
-    render_pagination(total_visible)
+    render_pagination(total_visible, "top")
 
     for record in visible_records[start:end]:
         render_service_center(record)
 
-    render_pagination(total_visible)
+    render_pagination(total_visible, "bottom")
 
 
 if __name__ == "__main__":
