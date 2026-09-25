@@ -1,4 +1,5 @@
 from pathlib import Path
+import base64
 import streamlit as st
 
 st.set_page_config(
@@ -11,9 +12,8 @@ st.set_page_config(
 BASE_DIR = Path(__file__).resolve().parent
 IMAGE_DIR = BASE_DIR / "images"
 
-
 SECTIONS = [
-    ("Start here", "Start here"),
+    ("Start", "Start here"),
     ("A", "Map pins & overview"),
     ("B", "Map controls"),
     ("C", "Service filters"),
@@ -30,14 +30,14 @@ st.markdown(
     """
     <style>
       .block-container {
-        max-width: 1180px;
-        padding-top: 1.5rem;
+        max-width: 1240px;
+        padding-top: 1rem;
         padding-bottom: 4rem;
       }
 
       [data-testid="stSidebar"] {
-        min-width: 300px;
-        max-width: 300px;
+        min-width: 290px;
+        max-width: 290px;
       }
 
       [data-testid="stSidebar"] .block-container {
@@ -49,53 +49,53 @@ st.markdown(
       }
 
       h1 {
-        font-size: 2.1rem !important;
+        font-size: 2rem !important;
         line-height: 1.2 !important;
       }
 
       h2 {
-        font-size: 1.55rem !important;
+        font-size: 1.5rem !important;
         line-height: 1.25 !important;
-        margin-top: 1.4rem !important;
+        margin-top: 1.25rem !important;
       }
 
       h3 {
-        font-size: 1.22rem !important;
+        font-size: 1.18rem !important;
         line-height: 1.3 !important;
       }
 
       p, li {
-        line-height: 1.6 !important;
+        line-height: 1.58 !important;
       }
 
       .tutorial-subtitle {
-        font-size: 1.02rem;
-        opacity: .78;
-        margin-top: -.4rem;
-        margin-bottom: 1.2rem;
+        font-size: 1rem;
+        opacity: .76;
+        margin-top: -.35rem;
+        margin-bottom: .8rem;
       }
 
       .section-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 38px;
-        height: 38px;
+        min-width: 40px;
+        height: 40px;
         padding: 0 10px;
         border-radius: 999px;
         background: #0F4C81;
         color: white;
         font-weight: 800;
-        margin-right: .55rem;
+        margin-right: .6rem;
         vertical-align: middle;
       }
 
       .step-box {
-        border: 1px solid rgba(128,128,128,.30);
+        border: 1px solid rgba(128,128,128,.28);
         border-radius: 12px;
         padding: 1rem 1.1rem;
         margin: .7rem 0;
-        background: rgba(128,128,128,.04);
+        background: rgba(128,128,128,.045);
       }
 
       .step-number {
@@ -116,7 +116,7 @@ st.markdown(
         background: rgba(22,138,139,.08);
         padding: .85rem 1rem;
         border-radius: 8px;
-        margin: .8rem 0 1rem 0;
+        margin: .9rem 0 1rem 0;
       }
 
       .quick-grid {
@@ -127,7 +127,7 @@ st.markdown(
       }
 
       .quick-card {
-        border: 1px solid rgba(128,128,128,.3);
+        border: 1px solid rgba(128,128,128,.28);
         border-radius: 13px;
         padding: 1rem;
         min-height: 135px;
@@ -141,14 +141,44 @@ st.markdown(
         margin-bottom: .35rem;
       }
 
-      div[data-testid="stLinkButton"] a,
-      div[data-testid="stButton"] button {
+      .sticky-overview {
+        position: sticky;
+        top: .35rem;
+        z-index: 80;
+        background: #0E1117;
+        padding: .45rem .45rem .55rem .45rem;
+        border-radius: 12px;
+        border: 1px solid rgba(128,128,128,.28);
+        margin: .55rem 0 1.1rem 0;
+        box-shadow: 0 4px 14px rgba(0,0,0,.18);
+      }
+
+      .sticky-overview img {
+        display: block;
+        width: 100%;
+        max-height: 360px;
+        object-fit: contain;
+        border-radius: 8px;
+        background: white;
+      }
+
+      .overview-caption {
+        font-size: .88rem;
+        opacity: .72;
+        margin-top: .35rem;
+        text-align: center;
+      }
+
+      div[data-testid="stButton"] button,
+      div[data-testid="stLinkButton"] a {
         min-height: 48px;
         font-size: 1rem;
         font-weight: 650;
       }
 
-      @media (max-width: 900px) {
+      @media (max-width: 1000px) {
+        .sticky-overview { position: static; }
+        .sticky-overview img { max-height: none; }
         .quick-grid { grid-template-columns: 1fr; }
       }
     </style>
@@ -157,16 +187,38 @@ st.markdown(
 )
 
 
-def image(name: str, caption: str | None = None):
+def image(name: str, caption: str | None = None, width: int | None = None):
     path = IMAGE_DIR / name
     if not path.exists():
         st.warning(f"Tutorial image is missing: {name}")
         return
-    st.image(str(path), caption=caption, use_container_width=True)
+
+    if width:
+        st.image(str(path), caption=caption, width=width)
+    else:
+        st.image(str(path), caption=caption, use_container_width=True)
+
+
+def sticky_overview():
+    path = IMAGE_DIR / "overview_annotated.png"
+    if not path.exists():
+        st.warning("Annotated overview image is missing.")
+        return
+
+    encoded = base64.b64encode(path.read_bytes()).decode("utf-8")
+    st.markdown(
+        f"""
+        <div class="sticky-overview">
+          <img src="data:image/png;base64,{encoded}" alt="Annotated overview of the ASIAAN Map Tool. Letters A through I identify the main tutorial sections." />
+          <div class="overview-caption">Use the letters on this overview to see where each tutorial section is located on the map.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def section_heading(letter: str, title: str):
-    if letter in {"Start here", "Quick"}:
+    if letter in {"Start", "Quick"}:
         st.header(title)
     else:
         st.markdown(
@@ -193,7 +245,7 @@ with st.sidebar:
 
     labels = []
     for marker, title in SECTIONS:
-        if marker == "Start here":
+        if marker == "Start":
             labels.append("Start here")
         elif marker == "Quick":
             labels.append("Quick workflow")
@@ -215,19 +267,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# The annotated map stays visible at the top for every section.
+sticky_overview()
+
 
 # -----------------------------------------------------------------------------
 # START HERE
 # -----------------------------------------------------------------------------
-if marker == "Start here":
+if marker == "Start":
     section_heading(marker, "Start here")
     st.write(
-        "The overview below uses letters to show where the main tools are located on the ASIAAN Map Tool. "
-        "Choose the same letter from the menu on the left to open the instructions for that feature."
-    )
-    image(
-        "overview_annotated.png",
-        "Overview of the ASIAAN Map Tool with each tutorial section labeled.",
+        "The letters on the overview map match the sections in the menu on the left. "
+        "Choose a section to see clear instructions and a larger image for that part of the map."
     )
 
     st.markdown("### What each letter means")
@@ -240,7 +291,7 @@ if marker == "Start here":
         - **E — Location tool:** choose a location and distance radius.
         - **F — Transportation Service Area:** display Pace transportation areas or routes.
         - **G — Service center details:** review information for a center selected on the map.
-        - **H — View results:** open the filtered service centers on a separate page without the map.
+        - **H — View filtered results:** open the filtered service centers on a separate page without the map.
         - **I — Map search:** search for an address or place on the map.
         """
     )
@@ -254,7 +305,7 @@ elif marker == "A":
     st.write(
         "The main map shows service center locations across the region. Start here to understand the pins and the basic map view."
     )
-    image("overview_clean.png", "Main map with service-center pins visible.")
+    image("map_pins.png", "Main map with service-center pins visible.")
 
     st.markdown("### Service center pins")
     st.markdown(
@@ -273,46 +324,44 @@ elif marker == "A":
 elif marker == "B":
     section_heading(marker, "Map controls")
     st.write("The main map controls are located along the upper-left edge of the map.")
+    image("map_controls.png", "Map controls and what each control does.")
 
-    c1, c2 = st.columns([1, 1.5])
-    with c1:
-        image("map_controls_left.png", "Zoom, Home, locate, and compass controls.")
-    with c2:
-        st.markdown(
-            """
-            ### Zoom, Home, Locate and Compass
-            - Use **+** to zoom in and **−** to zoom out.
-            - **Home** returns the map to its starting view.
-            - The **target/location control** recenters the map when location access is available. This means it will zoom to your location.
-            - The **compass** returns the map to its normal north-facing orientation.
-            """
-        )
+    st.markdown("### Zoom, Home, Locate and Compass")
+    st.markdown(
+        """
+        - Use **+** to zoom in and **−** to zoom out.
+        - **Home** returns the map to its starting view.
+        - The **target/location control** recenters the map when location access is available. This means it will zoom to your location.
+        - The **compass** returns the map to its normal north-facing orientation.
+        """
+    )
 
     st.markdown("### Map selection controls")
-    c1, c2 = st.columns([1, 2])
-    with c1:
-        image("map_selection_controls.png", "Selection controls near the upper-left corner of the map.")
-    with c2:
-        st.markdown(
-            """
-            - The pointer/selection control is near the upper-left corner.
-            - Use its small drop-down arrow to open the available selection options.
-            - The clear-selection control removes an active map selection when applicable.
-            """
-        )
+    st.markdown(
+        """
+        - The pointer/selection control is near the upper-left corner.
+        - Use its small drop-down arrow to open the available selection options.
+        - The clear-selection control removes an active map selection when applicable.
+        """
+    )
 
 
 # -----------------------------------------------------------------------------
-# C - FILTERS
+# C - SERVICE FILTERS
 # -----------------------------------------------------------------------------
 elif marker == "C":
     section_heading(marker, "Service filters")
     st.write(
         "The blue button at the top center of the map opens and closes the service-filter panel."
     )
-    image("filters_overview.png", "Filter panel opened above the map.")
+    image("service_filters.png", "Service and language filters shown above the map.")
 
-    step(1, "Open the filters", "Click the blue drop-down button at the top center of the map. The service categories expand above the map.")
+    step(
+        1,
+        "Open the filters",
+        "Click the blue drop-down button at the top center of the map. The service categories expand above the map.",
+    )
+
     step(
         2,
         "Choose a service or language",
@@ -321,7 +370,22 @@ elif marker == "C":
         "Now the green pins showing on the map represent the service centers offering the service you selected in the specific language you selected.",
     )
 
-    image("filter_switch_closeup.png", "The information icon is on the left of a filter row. The filter switch is on the right.")
+    image(
+        "filter_info_switch.png",
+        "The information icon explains the service. The switch turns the filter on or off.",
+    )
+
+    st.markdown("### What the information icon means")
+    st.write(
+        "An information icon appears beside the service filters. Use it when you want a short explanation for each service category before deciding whether to turn a filter on."
+    )
+    step(1, "Click the information icon beside a service", "Read the description of what that service or filter represents.")
+    step(2, "Decide whether the filter matches what you need", "After reading the description, turn on the switch beside the service category if you want to include it in your search.")
+
+    st.markdown(
+        '<div class="callout"><strong>Easy way to remember:</strong> The information icon explains the service. The switch turns the filter on or off.</div>',
+        unsafe_allow_html=True,
+    )
 
     step(
         3,
@@ -335,24 +399,13 @@ elif marker == "C":
 
     image(
         "filter_one_vs_multiple.png",
-        "Examples showing where to turn on one filter and where to turn on more than one filter.",
+        "Example showing the difference between using one filter and using multiple filters.",
     )
 
     step(
         4,
         "Close the filter panel",
         "Click the same blue button again when you want more space for the map. Closing the panel does not remove the filters you already selected.",
-    )
-
-    st.markdown("### What the information icon means")
-    st.write(
-        "An information icon appears beside the service filters. Use it when you want a short explanation for each service category before deciding whether to turn a filter on."
-    )
-    step(1, "Click the information icon beside a service", "Read the description of what that service or filter represents.")
-    step(2, "Decide whether the filter matches what you need", "After reading the description, turn on the switch beside the service category if you want to include it in your search.")
-    st.markdown(
-        '<div class="callout"><strong>Easy way to remember:</strong> The information icon explains the service. The switch turns the filter on or off.</div>',
-        unsafe_allow_html=True,
     )
 
 
@@ -364,10 +417,10 @@ elif marker == "D":
     st.write(
         "Keyword Search is at the top-left of the page, above the service categories. Searching by keyword is another way to locate service centers."
     )
+    image("keyword_search.png", 'Example: typing “icare” returns matching service-center suggestions.')
 
     step(1, "Click inside the Keyword Search box", "Start typing a word or service-center name.")
     step(2, "Review the suggestions", "Matching results appear directly below the search box as you type.")
-    image("keyword_results.png", 'Example: typing “icare” returns matching service-center suggestions.')
     step(3, "Choose the matching result", "Click the result that best matches what you are looking for. The map moves to or highlights the selected result.")
     step(4, "Clear the search when you are finished", "Click the X at the right side of the Keyword Search box to remove the current text and start a new search.")
 
@@ -378,28 +431,26 @@ elif marker == "D":
 
 
 # -----------------------------------------------------------------------------
-# E - LOCATION
+# E - LOCATION TOOL
 # -----------------------------------------------------------------------------
 elif marker == "E":
     section_heading(marker, "Location tool")
     st.write(
         "The Location tool is on the left side of the map. It lets you choose a place and display a distance radius around that place so you can focus on a specific area."
     )
-    image("location_controls.png", "Location tool controls.")
+    image("location_tool.png", "Location tool, distance control, and the shaded distance area.")
 
     step(1, "Choose how to define the location", "The three icons at the top let you use a point, a line, or an area. For a simple search around one address or place, use the point option.")
     step(2, "Set the distance", "Enter the distance in the number box and choose the unit, such as Miles. A smaller number restricts the search to a smaller area; a larger number allows you to search over a larger area.")
     step(3, "Choose the location on the map", "With the point option selected, choose the location you want to use. The selected place is listed under Input location, and a blue point appears on the map.")
-    image("location_selected.png", "A selected input location appears in the Location panel and on the map.")
 
     st.markdown("### Understanding the shaded distance area")
     st.write(
         "After a location is selected, the map draws a blue shaded circle around it. The circle shows the radius in miles around the selected location. Service-center pins within the circle are the locations inside that distance."
     )
-    image("location_1_mile.png", "Example of a smaller distance area around the selected location.")
+
     step(4, "Review the current distance", "The blue point marks the selected location. The shaded circle shows how far the selected distance extends from that location.")
-    image("location_5_miles.png", "Example after increasing the distance to 5 miles.")
-    step(5, "Change the distance if needed", "You can change the distance without selecting the location again. In the example above, the distance is changed from 1 mile to 5 miles. The shaded circle updates around the same location.")
+    step(5, "Change the distance if needed", "You can change the distance without selecting the location again. The shaded circle updates around the same location.")
 
     st.markdown(
         '<div class="callout"><strong>Important:</strong> Service-center pins may still be visible outside the shaded circle depending on the current map settings. The shaded area helps you identify which centers are within the selected distance.</div>',
@@ -407,8 +458,8 @@ elif marker == "E":
     )
 
     st.markdown("### Clear the selected location")
-    image("location_clear.png", "Clear control at the bottom of the Location panel.")
-    step(6, "Click Clear to start over", "Use the trash/bin control at the bottom of the Location panel. The selected location and shaded area are removed, and you can choose a new location.")
+    image("location_clear.png", "Clear the selected location when you want to start over.")
+    step(6, "Click Clear to start over", "Use the Clear control at the bottom of the Location panel. The selected location and shaded area are removed, and you can choose a new location.")
 
 
 # -----------------------------------------------------------------------------
@@ -419,7 +470,10 @@ elif marker == "F":
     st.write(
         "The Transportation Service Area widget is on the lower-left side of the map. It can display the geographical area covered by fixed-route transportation services such as Pace and current routes on top of the service-center map."
     )
-    image("transportation_routes.png", "Pace current routes displayed as blue route lines while service-center pins remain visible.")
+    image(
+        "transportation_service_area.png",
+        "Pace current routes displayed as blue route lines while service-center pins remain visible.",
+    )
 
     step(1, "Turn the transportation layer on", "Click the checkbox next to Transportation Service Area. A check mark means the transportation layer is turned on.")
     step(2, "Choose a transportation view", "Select the circle beside Pace On Demand, Pace dial a ride service, Pace current routes, or Pace Service Area.")
@@ -442,51 +496,41 @@ elif marker == "G":
     st.write(
         "Clicking a service-center pin opens a details panel on the right side of the map. This is the quickest way to view details about one center while staying on the map."
     )
-    image("service_center_details.png", "Service-center details panel opened from a map pin.")
+    image("service_center_details.png", "Service-center details panel and the information available in it.")
 
     step(1, "Confirm the service-center name", "The center name appears near the top of the panel.")
     step(2, "Find directions to a service center", "Use Open in Google Maps or Open in Apple Maps under Directions.")
     step(3, "Review the basic information", "The panel shows the address, languages supported, website, and phone number when those details are available.")
     step(4, "Check the services", "The service list uses Yes and No. Yes means that service is listed as available at the center; No means it is not listed as available.")
     step(5, "Scroll for more information", "Use the scrollbar inside the right-side panel to continue through the list of services.")
-
-    st.markdown("### Move between records")
-    image("service_center_details_arrows.png", "The navigation controls at the top of the panel move between available records.")
-    step(6, "Use the left and right arrows", "Use the left and right arrows at the top of the panel when you want to move between the records currently available in the panel.")
+    step(6, "Move between records", "Use the left and right arrows at the top of the panel when you want to move between the records currently available in the panel.")
 
 
 # -----------------------------------------------------------------------------
-# H - VIEW RESULTS
+# H - VIEW FILTERED RESULTS
 # -----------------------------------------------------------------------------
 elif marker == "H":
     section_heading(marker, "View filtered results")
     st.write(
         "Use View after you have applied the filters you want on the map to see the filtered results on a separate page. The View page uses the current filtered results, so apply the filters first and let the map finish updating before you click View."
     )
-    image("view_button_highlight.png", "The View button is on the right side of the map.")
+    image("view_button.png", "The View button is on the right side of the map.")
 
     step(1, "Apply the filters on the map", "Choose the service, language, location, or other filters you need. Wait for the service-center results to update.")
     step(2, "Click View", "Find the blue View button on the right side of the map and click it. A separate Service Center Details page opens.")
-    image("view_top_without_pdf.png", "Top of the Service Center Details page. The result count reflects the filters applied on the map.")
     step(3, "Check the number of results", "The page shows how many service centers matched the filters. If you change the filters on the map, click View again to open the updated results.")
 
-    st.markdown("### Search within the filtered results")
-    image("view_results.png", "Search, page navigation, and the start of a service-center card.")
-    step(1, "Click inside Search within these results", "Enter a service-center name, address, language, or available service. This search only works within the centers that already matched the filters from the map.")
-    step(2, "Clear the search text to return to all filtered results", "Removing the text restores the full set of centers from the current View page.")
+    st.markdown("### Search, browse, and read the results")
+    image(
+        "view_results.png",
+        "Service Center Details page showing search, page navigation, contact information, and Services provided.",
+        width=720,
+    )
 
-    st.markdown("### Move through the results")
-    step(1, "Check the range being shown", "The page shows a small group at a time, such as Showing 1–5 of 41.")
-    step(2, "Use Next and Previous", "Click Next to move to the next group of service centers. Click Previous to return to the earlier group. The page number appears between the buttons.")
-
-    st.markdown("### Read each service-center card")
-    image("view_services.png", "Service-center card showing contact information and Services provided.")
-    step(1, "Start with the center name and Location", "The center name appears at the top. The Location box shows the address and suite/unit information when available.")
-    step(2, "Open directions", "Use Get directions with Google Maps or Get directions with Apple Maps.")
-    step(3, "Use the phone number", "The phone number appears in its own box and can be selected as a call link on supported devices.")
-    step(4, "Check the available languages", "The Languages box lists the languages recorded for that center.")
-    step(5, "Open the website", "Click Visit website when a website is available.")
-    step(6, "Read Services provided", "Only services that the center provides are listed in this section. Services marked as unavailable are not shown here, which makes the list easier to scan.")
+    step(4, "Search within these results", "Enter a service-center name, address, language, or available service. This search only works within the centers that already matched the filters from the map.")
+    step(5, "Move through the results", "Use Next to move to the next group of service centers. Use Previous to return to an earlier group. The page number appears between the buttons.")
+    step(6, "Read each service-center card", "The card shows the center name, Location, directions, phone number, Languages, Website, and Services provided.")
+    step(7, "Read Services provided", "Only services that the center provides are listed in this section. Services marked as unavailable are not shown here, which makes the list easier to scan.")
 
     st.markdown(
         '<div class="callout"><strong>Why this page can be easier to use:</strong> The View page keeps the center name, location, phone, languages, website, and available services in separate sections, so you do not need to open and scroll through individual map pop-ups.</div>',
@@ -502,7 +546,8 @@ elif marker == "I":
     st.write(
         "The magnifying-glass control is in the upper-right corner of the map and allows you to enter an address of interest."
     )
-    image("map_search.png", "Map search opened from the magnifying-glass control.")
+    image("map_search.png", "Map search and the Find address or place box.")
+
     step(1, "Open the map search", "Click the magnifying-glass control in the upper-right corner of the map.")
     step(2, "Enter an address or place", "Type an address or place in the Find address or place search bar.")
     step(3, "Choose a matching result", "Select the matching result to move the map to that location.")
