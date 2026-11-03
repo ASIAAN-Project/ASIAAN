@@ -1,4 +1,3 @@
-
 import streamlit as st
 from urllib.parse import quote_plus
 
@@ -9,6 +8,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# -------------------------------------------------------------------
+# Demo data only
+# -------------------------------------------------------------------
 CENTERS = [
     {
         "name": "ECCOA Ombudsman Program",
@@ -59,37 +61,36 @@ CENTERS = [
             "Technology Training",
         ],
     },
-    {
-        "name": "Care Horizon",
-        "address": "Chicago, IL, USA",
-        "phone": "312-555-0188",
-        "languages": ["English", "Spanish"],
-        "website": "https://example.org/",
-        "services": [
-            "Home Health Services",
-            "Caregiver Support Services",
-            "Case Management",
-        ],
-    },
 ]
 
-ALL_SERVICES = sorted({service for center in CENTERS for service in center["services"]})
-ALL_LANGUAGES = sorted({language for center in CENTERS for language in center["languages"]})
+ALL_SERVICES = sorted(
+    {service for center in CENTERS for service in center["services"]}
+)
 
+ALL_LANGUAGES = sorted(
+    {language for center in CENTERS for language in center["languages"]}
+)
+
+# -------------------------------------------------------------------
+# Accessibility-focused visual styling
+# -------------------------------------------------------------------
 st.markdown(
     """
     <style>
-      .block-container {
+    .block-container {
         max-width: 1100px;
-        padding-top: 1.4rem;
+        padding-top: 1.5rem;
         padding-bottom: 4rem;
-      }
+    }
 
-      html, body, [class*="css"] {
+    html, body, [class*="css"] {
         font-size: 20px;
-      }
+    }
 
-      h1 {
-        font-size: 2.45rem !important;
+    h1 {
+        font-size: 2.5rem !important;
         line-height: 1.2 !important;
-      }
+    }
+
+    h2 {
+        font-size: 1.9rem !important;
